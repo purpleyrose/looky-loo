@@ -8,6 +8,7 @@ pub fn initalize_system() -> System {
 }
 
 pub fn get_system_stats(sys: &mut System) -> SystemStats {
+    let _ = initalize_system();  // Initialize the system
     sys.refresh_all();  // Refresh system-wide stats like CPU and memory
     SystemStats {
         cpu_usage: sys.global_cpu_usage(),

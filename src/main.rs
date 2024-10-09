@@ -4,13 +4,14 @@ mod ui;
 
 use crossterm::{
     event::{self, Event, KeyCode},
-    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen, ClearType},
+    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
 use std::io::stdout;
 use std::time::{Duration, Instant};
-use std::{thread};
+use std::thread;
 use clap::Parser;
+use sysinfo::System;
 
 /// A process monitoring tool similar to top.
 #[derive(Parser)]
@@ -31,7 +32,7 @@ fn main() {
     let cli = Cli::parse();
 
     // Initialize system and terminal
-    let mut sys = process::initalize_system();
+    let mut sys = System::new_all(); // Initialize System with all information
     let mut stdout = stdout();
 
     // Set up the terminal UI (enter alternate screen)
@@ -45,32 +46,38 @@ fn main() {
     loop {
         let elapsed = last_refresh_time.elapsed();
         if elapsed >= Duration::from_secs(cli.interval) {
-            sys.refresh_cpu_all();  // Refresh CPU stats after the user-defined interval
+            sys.refresh_all();  // Refresh all system information (CPU, memory, processes)
+            
             last_refresh_time = Instant::now();
         }
 
-        sys.refresh_processes(sysinfo::ProcessesToUpdate::All);  // Refresh processes for the process list
+        // Introduce a delay between refreshes to allow CPU usage to accumulate
+        thread::sleep(Duration::from_secs(1));  // 1 second delay for CPU usage calculation
 
+        // Retrieve updated system stats and process list
         let process_list = process::get_process_list(&mut sys);
         let system_stats = process::get_system_stats(&mut sys);
 
         // Render the system stats and process list in the terminal
         ui::draw_ui(&mut stdout, &process_list, &system_stats, cli.top_n);
 
-        // Handle user input
+        // Handle user input (to quit)
         if event::poll(Duration::from_millis(200)).unwrap() {
             if let Event::Key(key_event) = event::read().unwrap() {
                 if key_event.code == KeyCode::Char('q') {
+                    // clear the screen
+                    stdout.execute(crossterm::terminal::Clear(crossterm::terminal::ClearType::All)).unwrap();
+
                     break; // Exit the loop if 'q' is pressed
+                    
                 }
             }
         }
-
-        // Sleep briefly before refreshing again
-        thread::sleep(Duration::from_millis(200));  // Sleep for 200ms
     }
 
     // Clean up the terminal on exit
     terminal::disable_raw_mode().unwrap();
+    // clear the screen
+    stdout.execute(crossterm::terminal::Clear(crossterm::terminal::ClearType::Purge)).unwrap();
     stdout.execute(LeaveAlternateScreen).unwrap();  // Leave alternate screen
 }

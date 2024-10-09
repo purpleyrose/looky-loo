@@ -17,13 +17,7 @@ pub fn draw_ui<W: Write>(stdout: &mut W, process_list: &[ProcessData], system_st
     stdout.flush().unwrap();  // Ensure the terminal is fully cleared
 
     // Print system-wide CPU and memory stats at the top
-    println!(
-        "System Stats: CPU Usage: {:.2}%, Memory Used: {:.2} MB / {:.2} MB",
-        system_stats.cpu_usage,
-        system_stats.memory_usage as f64 / 1024.0 / 1024.0,  // Convert to MB
-        system_stats.memory_total as f64 / 1024.0 / 1024.0  // Convert to MB
-    );
-    println!("------------------------------------------------------------");
+    
 
     // Print the header for the process table
     println!(
@@ -42,6 +36,22 @@ pub fn draw_ui<W: Write>(stdout: &mut W, process_list: &[ProcessData], system_st
             process.memory as f64 / 1024.0 / 1024.0,  // Convert memory to MB
         );
     }
-
+    // Highlight process in red if the memory usage is above 100MB
+    for process in process_list.iter().take(top_n) {
+        if process.memory as f64 / 1024.0 / 1024.0 > 100.0 {
+            println!("\x1b[31m{:<6} {:<25} {:<10.2} {:<10.2}\x1b[0m",
+                     process.pid,
+                     process.name,
+                     process.cpu_usage,
+                     process.memory as f64 / 1024.0 / 1024.0);
+        }
+    }
+    println!(
+        "System Stats: CPU Usage: {:.2}%, Memory Used: {:.2} MB / {:.2} MB",
+        system_stats.cpu_usage,
+        system_stats.memory_usage as f64 / 1024.0 / 1024.0,  // Convert to MB
+        system_stats.memory_total as f64 / 1024.0 / 1024.0  // Convert to MB
+    );
+    println!("{}", "-".repeat(60));
     stdout.flush().unwrap();  // Ensure everything is written to the terminal
 }
